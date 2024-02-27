@@ -19,13 +19,17 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
         }
         .stage(scope)[0];
         let (r2, c2) = b_meta[0](r1, scope);
-        let (r3, c3) = a_meta[1](r0, scope);
-        let (r4, c4) = b_meta[1](r2, scope);
+        let r3 = SamOps::Repeat {
+            target: r0,
+            repeat: r2,
+        }.stage(scope)[0];
+        let (r4, c4) = a_meta[1](r3, scope);
+        let (r5, c5) = b_meta[1](r2, scope);
         let icrd = SamOps::Join {
-            ref1: r3,
-            ref2: r4,
-            crd1: c3,
-            crd2: c4,
+            ref1: r4,
+            ref2: r5,
+            crd1: c4,
+            crd2: c5,
             tp: crate::sam::JoinType::Intersect,
         }
         .stage(scope)[2];
@@ -58,13 +62,17 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
         }
         .stage(scope)[0];
         let (r2, c2) = b_meta[0](r1, scope);
-        let (r3, c3) = a_meta[1](r0, scope);
-        let (r4, c4) = b_meta[1](r2, scope);
+        let r3 = SamOps::Repeat {
+            target: r0,
+            repeat: r2,
+        }.stage(scope)[0];
+        let (r4, c4) = a_meta[1](r3, scope);
+        let (r5, c5) = b_meta[1](r2, scope);
         let icrd = SamOps::Join {
-            ref1: r3,
-            ref2: r4,
-            crd1: c3,
-            crd2: c4,
+            ref1: r4,
+            ref2: r5,
+            crd1: c4,
+            crd2: c5,
             tp: crate::sam::JoinType::Intersect,
         }
         .stage(scope)[2];
@@ -90,13 +98,17 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
         }
         .stage(scope)[0];
         let (r2, _c2) = b.meta[0](r1, scope);
-        let (r3, c3) = a.meta[1](r0, scope);
-        let (r4, c4) = b.meta[1](r2, scope);
+        let r3 = SamOps::Repeat {
+            target: r0,
+            repeat: r2,
+        }.stage(scope)[0];
+        let (r4, c4) = a.meta[1](r3, scope);
+        let (r5, c5) = b.meta[1](r2, scope);
         let [ika, ikb, _icrd] = SamOps::Join {
-            ref1: r3,
-            ref2: r4,
-            crd1: c3,
-            crd2: c4,
+            ref1: r4,
+            ref2: r5,
+            crd1: c4,
+            crd2: c5,
             tp: crate::sam::JoinType::Intersect,
         }
         .stage(scope)[..] else {
