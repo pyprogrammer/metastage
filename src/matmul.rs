@@ -102,11 +102,11 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
         .stage(scope)[..] else {
             panic!()
         };
-        let vA = (a.comp)(ika, scope);
-        let vB = (b.comp)(ikb, scope);
+        let v_a = (a.comp)(ika, scope);
+        let v_b = (b.comp)(ikb, scope);
         let mul = SamOps::ALU {
             op: crate::sam::PrimitiveOp::Mul,
-            inputs: vec![vA, vB],
+            inputs: vec![v_a, v_b],
         }
         .stage(scope)[0];
         SamOps::Reduce { inputs: mul }.stage(scope)[0]
@@ -114,5 +114,26 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
     Tensor {
         meta: vec![Rc::new(meta0), Rc::new(meta1)],
         comp: Rc::new(comp),
+    }
+}
+
+#[cfg(test)]
+mod test {
+
+    use crate::{sym::{Expr, ScopeRef}, tensor::InputTensor};
+
+    use super::{matmul, SamOps};
+
+    #[test]
+    fn test_matmul() {
+        let scope = ScopeRef::<SamOps>::default();
+        let root = SamOps::Root.stage(&scope)[0];
+        let tensor_a = InputTensor { name: "A".to_string(), dims: 2 };
+        let tensor_b = InputTensor { name: "B".to_string(), dims: 2 };
+        let output = matmul(tensor_a.stage(), tensor_b.stage());
+        let result = (output.comp)(root, &scope);
+        println!("{result:?}");
+        
+        scope.borrow_mut().print();
     }
 }
