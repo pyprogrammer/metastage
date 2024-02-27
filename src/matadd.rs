@@ -118,6 +118,7 @@ pub fn matadd(a: Tensor, b: Tensor) -> Tensor {
 
 #[cfg(test)]
 mod test {
+    use graphviz_rust::printer::{DotPrinter, PrinterContext};
 
     use crate::{
         matmul::matmul,
@@ -156,6 +157,8 @@ mod test {
         let result = (output.comp)(root, &scope);
         println!("{result:?}");
 
-        scope.borrow_mut().print();
+        let sc = scope.borrow_mut();
+        sc.print();
+        println!("{}", sc.to_dot().print(&mut PrinterContext::default()));
     }
 }

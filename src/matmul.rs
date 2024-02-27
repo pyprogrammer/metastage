@@ -120,6 +120,8 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
 #[cfg(test)]
 mod test {
 
+    use graphviz_rust::printer::{DotPrinter, PrinterContext};
+
     use crate::{sym::{Expr, ScopeRef}, tensor::InputTensor};
 
     use super::{matmul, SamOps};
@@ -135,5 +137,6 @@ mod test {
         println!("{result:?}");
         
         scope.borrow_mut().print();
+        println!("{}", scope.borrow().to_dot().print(&mut PrinterContext::default()));
     }
 }

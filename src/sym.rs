@@ -1,6 +1,6 @@
 use std::{cell::RefCell, fmt::Debug, hash::Hash, rc::Rc};
 
-use fxhash::FxHashMap;
+use fxhash::{FxHashMap, FxHashSet};
 
 #[derive(Default, Debug)]
 struct Counter(usize);
@@ -58,17 +58,82 @@ where
             }
         }
     }
+
+    fn program_order<'a>(
+        &'a self,
+    ) -> impl Iterator<Item = (&T, &Vec<Sym>)> + DoubleEndedIterator + 'a {
+        let mut refs_and_deps: Vec<_> = self.cache.iter().collect();
+        refs_and_deps.sort_unstable_by_key(|(_, deps)| deps.iter().map(|Sym { id }| *id).max());
+        refs_and_deps.into_iter()
+    }
+
     pub fn print(&self) {
         // sort cache by roots
-        let mut refs_and_deps: Vec<_> = self.cache.iter().map(|(k, v)| (v, k)).collect();
-        refs_and_deps.sort_unstable_by_key(|(deps, _)| deps.iter().map(|Sym { id }| *id).max());
-        for (sym, exprs) in refs_and_deps {
+        for (exprs, sym) in self.program_order() {
             let lhs = sym
                 .iter()
                 .map(|s| format!("{:?}", *s))
                 .collect::<Vec<_>>()
                 .join(", ");
             println!("{lhs} = {:?}", exprs);
+        }
+    }
+
+    fn calculate_live_syms(&self, mut roots: FxHashSet<Sym>) -> FxHashSet<Sym> {
+        for (expr, outputs) in self.program_order().rev() {
+            // If any of the outputs are in the roots set, then the op is live.
+            if outputs.iter().any(|output| roots.contains(output)) {
+                roots.extend(expr.inputs().iter())
+            }
+        }
+        roots
+    }
+
+    pub fn eliminate_dead_code(&mut self, roots: FxHashSet<Sym>) {
+        let live = self.calculate_live_syms(roots);
+        self.cache.retain(|_, v| v.iter().any(|x| live.contains(x)));
+    }
+
+    pub fn to_dot(&self) -> graphviz_rust::dot_structures::Graph {
+        use graphviz_rust::{dot_generator::*, dot_structures::*};
+
+        let mut stmts = vec![];
+        for (i, (expr, syms)) in self.program_order().enumerate() {
+            let ident = format!("op_{i}");
+            let nodelabel = format!("{:?}", expr).replace("\"", "\\\"");
+            stmts.push(
+                node!(
+                    ident,
+                    vec![
+                        attr!("label", esc nodelabel),
+                        attr!("color", "turquoise"),
+                        attr!("style", "filled")
+                    ]
+                )
+                .into(),
+            );
+            for sym in syms {
+                stmts.push(
+                    edge!(
+                        node_id!(ident) => node_id!(sym.id), vec![attr!("arrowhead", "none")]
+                    )
+                    .into(),
+                )
+            }
+            for input in expr.inputs() {
+                stmts.push(
+                    edge!(
+                        node_id!(input.id) => node_id!(ident)
+                    )
+                    .into(),
+                );
+            }
+        }
+
+        Graph::DiGraph {
+            id: id!("ProgramGraph"),
+            strict: false,
+            stmts,
         }
     }
 }
