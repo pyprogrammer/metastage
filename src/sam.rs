@@ -36,6 +36,7 @@ pub enum SamOps {
     },
     Reduce {
         inputs: Sym,
+        op: PrimitiveOp,
     },
     ALU {
         op: PrimitiveOp,
@@ -54,31 +55,15 @@ pub enum SamOps {
 impl Expr for SamOps {
     fn arity(&self) -> usize {
         match self {
-            SamOps::Fiberlookup {
-                reference: _,
-                tensor: _,
-                level: _,
-            } => 2,
-            SamOps::Repeat {
-                target: _,
-                repeat: _,
-            } => 1,
-            SamOps::Arrayval {
-                reference: _,
-                tensor: _,
-            } => 1,
-            SamOps::Join {
-                ref1: _,
-                ref2: _,
-                crd1: _,
-                crd2: _,
-                tp: _,
-            } => 3,
-            SamOps::Reduce { inputs: _ } => 1,
-            SamOps::ALU { op: _, inputs: _ } => 1,
-            SamOps::CoordDrop { inner: _, outer: _ } => 1,
+            SamOps::Fiberlookup { .. } => 2,
+            SamOps::Repeat { .. } => 1,
+            SamOps::Arrayval { .. } => 1,
+            SamOps::Join { .. } => 3,
+            SamOps::Reduce { .. } => 1,
+            SamOps::ALU { .. } => 1,
+            SamOps::CoordDrop { .. } => 1,
             SamOps::Root => 1,
-            SamOps::Genref { coords: _ } => 1,
+            SamOps::Genref { .. } => 1,
         }
     }
 
@@ -101,11 +86,28 @@ impl Expr for SamOps {
                 crd2,
                 tp: _,
             } => vec![*ref1, *ref2, *crd1, *crd2],
-            SamOps::Reduce { inputs } => vec![*inputs],
+            SamOps::Reduce { inputs , .. } => vec![*inputs],
             SamOps::ALU { op: _, inputs } => inputs.to_vec(),
             SamOps::CoordDrop { inner, outer } => vec![*inner, *outer],
             SamOps::Root => vec![],
             SamOps::Genref { coords } => vec![*coords],
+        }
+    }
+
+    fn simplify(self, scope: &crate::sym::Scope<Self>) -> Self
+    where
+        Self: PartialEq + Eq + std::hash::Hash + Expr + std::fmt::Debug + Sized,
+    {
+        match self {
+            SamOps::Repeat { target, repeat } => {
+                if let Some(&SamOps::Root) = scope.lookup(repeat) {
+                    dbg!("Eliding Repeat w.r.t. Root!");
+                    scope.lookup(target).unwrap().clone()
+                } else {
+                    self
+                }
+            }
+            _ => self,
         }
     }
 }

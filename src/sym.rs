@@ -26,11 +26,18 @@ pub trait Expr {
     fn arity(&self) -> usize;
     fn inputs(&self) -> Vec<Sym>;
 
-    fn stage(self, scope: &Rc<RefCell<Scope<Self>>>) -> Vec<Sym>
+    fn stage(self, scope: &ScopeRef<Self>) -> Vec<Sym>
     where
         Self: PartialEq + Eq + std::hash::Hash + Expr + Debug + Sized,
     {
         scope.borrow_mut().stage(self)
+    }
+
+    fn simplify(self, _scope: &Scope<Self>) -> Self
+    where
+        Self: PartialEq + Eq + std::hash::Hash + Expr + Debug + Sized,
+    {
+        self
     }
 }
 
@@ -45,18 +52,24 @@ where
     T: PartialEq + Eq + std::hash::Hash + Expr + Debug,
 {
     pub fn stage(&mut self, expr: T) -> Vec<Sym> {
-        match self.cache.get(&expr) {
+        let simplified = expr.simplify(&self);
+        match self.cache.get(&simplified) {
             Some(existing) => existing.clone(),
             None => {
-                let new_syms: Vec<_> = (0..expr.arity())
+                let new_syms: Vec<_> = (0..simplified.arity())
                     .map(|_| Sym {
                         id: self.counter.next(),
                     })
                     .collect();
-                self.cache.insert(expr, new_syms.clone());
+                self.cache.insert(simplified, new_syms.clone());
                 new_syms
             }
         }
+    }
+
+    pub fn lookup<'a>(&'a self, sym: Sym) -> Option<&'a T> {
+        let filtered = self.cache.iter().find(|(_, syms)| {syms.contains(&sym)});
+        filtered.map(|x|x.0)
     }
 
     fn program_order<'a>(

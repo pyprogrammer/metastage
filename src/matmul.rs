@@ -22,7 +22,8 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
         let r3 = SamOps::Repeat {
             target: r0,
             repeat: r2,
-        }.stage(scope)[0];
+        }
+        .stage(scope)[0];
         let (r4, c4) = a_meta[1](r3, scope);
         let (r5, c5) = b_meta[1](r2, scope);
         let icrd = SamOps::Join {
@@ -65,7 +66,8 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
         let r3 = SamOps::Repeat {
             target: r0,
             repeat: r2,
-        }.stage(scope)[0];
+        }
+        .stage(scope)[0];
         let (r4, c4) = a_meta[1](r3, scope);
         let (r5, c5) = b_meta[1](r2, scope);
         let icrd = SamOps::Join {
@@ -101,7 +103,8 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
         let r3 = SamOps::Repeat {
             target: r0,
             repeat: r2,
-        }.stage(scope)[0];
+        }
+        .stage(scope)[0];
         let (r4, c4) = a.meta[1](r3, scope);
         let (r5, c5) = b.meta[1](r2, scope);
         let [ika, ikb, _icrd] = SamOps::Join {
@@ -121,7 +124,11 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
             inputs: vec![v_a, v_b],
         }
         .stage(scope)[0];
-        SamOps::Reduce { inputs: mul }.stage(scope)[0]
+        SamOps::Reduce {
+            inputs: mul,
+            op: crate::sam::PrimitiveOp::Add,
+        }
+        .stage(scope)[0]
     };
     Tensor {
         meta: vec![Rc::new(meta0), Rc::new(meta1)],
@@ -134,7 +141,10 @@ mod test {
 
     use graphviz_rust::printer::{DotPrinter, PrinterContext};
 
-    use crate::{sym::{Expr, ScopeRef}, tensor::InputTensor};
+    use crate::{
+        sym::{Expr, ScopeRef},
+        tensor::InputTensor,
+    };
 
     use super::{matmul, SamOps};
 
@@ -142,13 +152,55 @@ mod test {
     fn test_matmul() {
         let scope = ScopeRef::<SamOps>::default();
         let root = SamOps::Root.stage(&scope)[0];
-        let tensor_a = InputTensor { name: "A".to_string(), dims: 2 };
-        let tensor_b = InputTensor { name: "B".to_string(), dims: 2 };
+        let tensor_a = InputTensor {
+            name: "A".to_string(),
+            dims: 2,
+        };
+        let tensor_b = InputTensor {
+            name: "B".to_string(),
+            dims: 2,
+        };
         let output = matmul(tensor_a.stage(), tensor_b.stage());
         let result = (output.comp)(root, &scope);
         println!("{result:?}");
-        
+
         scope.borrow_mut().print();
-        println!("{}", scope.borrow().to_dot().print(&mut PrinterContext::default()));
+        println!(
+            "{}",
+            scope
+                .borrow()
+                .to_dot()
+                .print(&mut PrinterContext::default())
+        );
+    }
+
+    #[test]
+    fn test_matmul2() {
+        let scope = ScopeRef::<SamOps>::default();
+        let root = SamOps::Root.stage(&scope)[0];
+        let tensor_a = InputTensor {
+            name: "A".to_string(),
+            dims: 2,
+        };
+        let tensor_b = InputTensor {
+            name: "B".to_string(),
+            dims: 2,
+        };
+        let tensor_c = InputTensor {
+            name: "C".to_string(),
+            dims: 2,
+        };
+        let output = matmul(matmul(tensor_a.stage(), tensor_b.stage()), tensor_c.stage());
+        let result = (output.comp)(root, &scope);
+        println!("{result:?}");
+
+        scope.borrow_mut().print();
+        println!(
+            "{}",
+            scope
+                .borrow()
+                .to_dot()
+                .print(&mut PrinterContext::default())
+        );
     }
 }

@@ -144,7 +144,9 @@ mod test {
         let t1 = matadd(tensor_a.stage(), tensor_b.stage());
 
         let result = (t1.comp)(root, &scope);
-        println!("{result:?}");
+        let m0 = (t1.meta[0])(root, &scope);
+        let m1 = (t1.meta[1])(root, &scope);
+        println!("{result:?} {m0:?}, {m1:?}");
 
         let sc = scope.borrow_mut();
         sc.print();
@@ -178,7 +180,9 @@ mod test {
         let output = matadd(t1, t2);
 
         let result = (output.comp)(root, &scope);
-        println!("{result:?}");
+        let m0 = (output.meta[0])(root, &scope);
+        let m1 = (output.meta[1])(root, &scope);
+        println!("{result:?} {m0:?}, {m1:?}");
 
         let sc = scope.borrow_mut();
         sc.print();
