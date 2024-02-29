@@ -129,6 +129,29 @@ mod test {
     use super::{matadd, SamOps};
 
     #[test]
+    fn test_matadd() {
+        let scope = ScopeRef::<SamOps>::default();
+        let root = SamOps::Root.stage(&scope)[0];
+        let tensor_a = InputTensor {
+            name: "A".to_string(),
+            dims: 2,
+        };
+        let tensor_b = InputTensor {
+            name: "B".to_string(),
+            dims: 2,
+        };
+
+        let t1 = matadd(tensor_a.stage(), tensor_b.stage());
+
+        let result = (t1.comp)(root, &scope);
+        println!("{result:?}");
+
+        let sc = scope.borrow_mut();
+        sc.print();
+        println!("{}", sc.to_dot().print(&mut PrinterContext::default()));
+    }
+
+    #[test]
     fn test_nested_ops() {
         let scope = ScopeRef::<SamOps>::default();
         let root = SamOps::Root.stage(&scope)[0];
@@ -153,6 +176,65 @@ mod test {
         let t2 = matmul(tensor_c.stage(), tensor_d.stage());
 
         let output = matadd(t1, t2);
+
+        let result = (output.comp)(root, &scope);
+        println!("{result:?}");
+
+        let sc = scope.borrow_mut();
+        sc.print();
+        println!("{}", sc.to_dot().print(&mut PrinterContext::default()));
+    }
+
+    #[test]
+    fn test_ab_plus_ac() {
+        let scope = ScopeRef::<SamOps>::default();
+        let root = SamOps::Root.stage(&scope)[0];
+        let tensor_a = InputTensor {
+            name: "A".to_string(),
+            dims: 2,
+        };
+        let tensor_b = InputTensor {
+            name: "B".to_string(),
+            dims: 2,
+        };
+        let tensor_c = InputTensor {
+            name: "C".to_string(),
+            dims: 2,
+        };
+
+        let t1 = matmul(tensor_a.stage(), tensor_b.stage());
+        let t2 = matmul(tensor_a.stage(), tensor_c.stage());
+
+        let output = matadd(t1, t2);
+
+        let result = (output.comp)(root, &scope);
+        println!("{result:?}");
+
+        let sc = scope.borrow_mut();
+        sc.print();
+        println!("{}", sc.to_dot().print(&mut PrinterContext::default()));
+    }
+
+    #[test]
+    fn test_a_times_b_plus_c() {
+        let scope = ScopeRef::<SamOps>::default();
+        let root = SamOps::Root.stage(&scope)[0];
+        let tensor_a = InputTensor {
+            name: "A".to_string(),
+            dims: 2,
+        };
+        let tensor_b = InputTensor {
+            name: "B".to_string(),
+            dims: 2,
+        };
+        let tensor_c = InputTensor {
+            name: "C".to_string(),
+            dims: 2,
+        };
+
+        let b_plus_c = matadd(tensor_b.stage(), tensor_c.stage());
+
+        let output = matmul(tensor_a.stage(), b_plus_c);
 
         let result = (output.comp)(root, &scope);
         println!("{result:?}");
