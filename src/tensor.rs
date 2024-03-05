@@ -7,7 +7,7 @@ use crate::{
 
 pub struct Tensor {
     pub meta: Vec<Rc<dyn Fn(Sym, &ScopeRef<SamOps>) -> (Sym, Sym)>>,
-    pub comp: Rc<dyn Fn(Sym, &ScopeRef<SamOps>) -> Sym>,
+    pub comp: Rc<dyn Fn(Vec<Sym>, &ScopeRef<SamOps>) -> Sym>,
 }
 
 pub struct InputTensor {
@@ -33,9 +33,9 @@ impl InputTensor {
         let tensor = self.name.clone();
         Tensor {
             meta,
-            comp: Rc::new(move |refstream, scope: &ScopeRef<SamOps>| {
+            comp: Rc::new(move |refstreams, scope: &ScopeRef<SamOps>| {
                 SamOps::Arrayval {
-                    reference: refstream,
+                    reference: refstreams[refstreams.len() - 1],
                     tensor: tensor.clone(),
                 }
                 .stage(scope)[0]

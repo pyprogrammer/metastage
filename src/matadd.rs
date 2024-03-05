@@ -1,6 +1,6 @@
 use std::rc::Rc;
 
-use crate::{sam::SamOps, sym::Expr, tensor::Tensor};
+use crate::{sam::SamOps, sym::{Expr, Sym}, tensor::Tensor};
 
 pub fn matadd(a: Tensor, b: Tensor) -> Tensor {
     let a_meta = a.meta.clone();
@@ -16,10 +16,8 @@ pub fn matadd(a: Tensor, b: Tensor) -> Tensor {
         let (r1, c1) = b_meta[0](t0, scope);
 
         let icrd = SamOps::Join {
-            ref1: r0,
-            ref2: r1,
-            crd1: c0,
-            crd2: c1,
+            refs: vec![r0, r1],
+            crds: vec![c0, c1],
             tp: crate::sam::JoinType::Union,
         }
         .stage(scope)[2];
@@ -40,10 +38,8 @@ pub fn matadd(a: Tensor, b: Tensor) -> Tensor {
         let (r1, c1) = b_meta[0](t0, scope);
 
         let [t1_0, t2_0, _icrd_0] = SamOps::Join {
-            ref1: r0,
-            ref2: r1,
-            crd1: c0,
-            crd2: c1,
+            refs: vec![r0, r1],
+            crds: vec![c0, c1],
             tp: crate::sam::JoinType::Union,
         }
         .stage(scope)[..] else {
@@ -54,10 +50,8 @@ pub fn matadd(a: Tensor, b: Tensor) -> Tensor {
         let (r3, c3) = b_meta[1](t2_0, scope);
 
         let icrd_1 = SamOps::Join {
-            ref1: r2,
-            ref2: r3,
-            crd1: c2,
-            crd2: c3,
+            refs: vec![r2, r3],
+            crds: vec![c2, c3],
             tp: crate::sam::JoinType::Union,
         }
         .stage(scope)[2];
@@ -67,21 +61,19 @@ pub fn matadd(a: Tensor, b: Tensor) -> Tensor {
 
     let a_meta = a.meta.clone();
     let b_meta = b.meta.clone();
-    let comp = move |refstream, scope: &_| {
+    let comp = move |refstreams: Vec<Sym>, scope: &_| {
         let root = SamOps::Root.stage(scope)[0];
         let t0 = SamOps::Repeat {
             target: root,
-            repeat: refstream,
+            repeat: refstreams[0],
         }
         .stage(scope)[0];
         let (r0, c0) = a_meta[0](t0, scope);
         let (r1, c1) = b_meta[0](t0, scope);
 
         let [t1_0, t2_0, _icrd_0] = SamOps::Join {
-            ref1: r0,
-            ref2: r1,
-            crd1: c0,
-            crd2: c1,
+            refs: vec![r0, r1],
+            crds: vec![c0, c1],
             tp: crate::sam::JoinType::Union,
         }
         .stage(scope)[..] else {
@@ -92,18 +84,16 @@ pub fn matadd(a: Tensor, b: Tensor) -> Tensor {
         let (r3, c3) = b_meta[1](t2_0, scope);
 
         let [t1_1, t2_1, _icrd_1] = SamOps::Join {
-            ref1: r2,
-            ref2: r3,
-            crd1: c2,
-            crd2: c3,
+            refs: vec![r2, r3],
+            crds: vec![c2, c3],
             tp: crate::sam::JoinType::Union,
         }
         .stage(scope)[..] else {
             panic!()
         };
 
-        let v_a = (a.comp)(t1_1, scope);
-        let v_b = (b.comp)(t2_1, scope);
+        let v_a = (a.comp)(vec![r0, t1_1], scope);
+        let v_b = (b.comp)(vec![r1, t2_1], scope);
         SamOps::ALU {
             op: crate::sam::PrimitiveOp::Add,
             inputs: vec![v_a, v_b],
@@ -143,7 +133,7 @@ mod test {
 
         let t1 = matadd(tensor_a.stage(), tensor_b.stage());
 
-        let result = (t1.comp)(root, &scope);
+        let result = (t1.comp)(vec![root, root], &scope);
         let m0 = (t1.meta[0])(root, &scope);
         let m1 = (t1.meta[1])(root, &scope);
         println!("{result:?} {m0:?}, {m1:?}");
@@ -179,7 +169,7 @@ mod test {
 
         let output = matadd(t1, t2);
 
-        let result = (output.comp)(root, &scope);
+        let result = (output.comp)(vec![root, root], &scope);
         let m0 = (output.meta[0])(root, &scope);
         let m1 = (output.meta[1])(root, &scope);
         println!("{result:?} {m0:?}, {m1:?}");
@@ -211,7 +201,7 @@ mod test {
 
         let output = matadd(t1, t2);
 
-        let result = (output.comp)(root, &scope);
+        let result = (output.comp)(vec![root, root], &scope);
         println!("{result:?}");
 
         let sc = scope.borrow_mut();
@@ -240,7 +230,7 @@ mod test {
 
         let output = matmul(tensor_a.stage(), b_plus_c);
 
-        let result = (output.comp)(root, &scope);
+        let result = (output.comp)(vec![root, root], &scope);
         println!("{result:?}");
 
         let sc = scope.borrow_mut();

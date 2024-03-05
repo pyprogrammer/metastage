@@ -28,10 +28,12 @@ pub enum SamOps {
         tensor: String,
     },
     Join {
-        ref1: Sym,
-        ref2: Sym,
-        crd1: Sym,
-        crd2: Sym,
+        // ref1: Sym,
+        // ref2: Sym,
+        // crd1: Sym,
+        // crd2: Sym,
+        refs: Vec<Sym>,
+        crds: Vec<Sym>,
         tp: JoinType,
     },
     Reduce {
@@ -79,14 +81,10 @@ impl Expr for SamOps {
                 reference,
                 tensor: _,
             } => vec![*reference],
-            SamOps::Join {
-                ref1,
-                ref2,
-                crd1,
-                crd2,
-                tp: _,
-            } => vec![*ref1, *ref2, *crd1, *crd2],
-            SamOps::Reduce { inputs , .. } => vec![*inputs],
+            SamOps::Join { refs, crds, tp: _ } => {
+                refs.iter().cloned().chain(crds.iter().cloned()).collect()
+            }
+            SamOps::Reduce { inputs, .. } => vec![*inputs],
             SamOps::ALU { op: _, inputs } => inputs.to_vec(),
             SamOps::CoordDrop { inner, outer } => vec![*inner, *outer],
             SamOps::Root => vec![],
