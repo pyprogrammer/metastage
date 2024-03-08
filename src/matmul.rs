@@ -9,7 +9,7 @@ use crate::{
 pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
     let a_meta = a.meta.clone();
     // let b_meta = b.meta.clone();
-    let meta0 = move |refstream, scope: &_| {
+    let meta0 = Rc::new(move |refstream, scope: &_| {
         let root = SamOps::Root.stage(scope)[0];
         let t0 = SamOps::Repeat {
             target: root,
@@ -23,41 +23,15 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
         // }
         // .stage(scope)[0];
         (r0, c0)
-        // let (r2, c2) = b_meta[0](r1, scope);
-        // let r3 = SamOps::Repeat {
-        //     target: r0,
-        //     repeat: r2,
-        // }
-        // .stage(scope)[0];
-        // let (r4, c4) = a_meta[1](r3, scope);
-        // let (r5, c5) = b_meta[1](r2, scope);
-        // let icrd = SamOps::Join {
-        //     ref1: r4,
-        //     ref2: r5,
-        //     crd1: c4,
-        //     crd2: c5,
-        //     tp: crate::sam::JoinType::Intersect,
-        // }
-        // .stage(scope)[2];
-        // let jk = SamOps::CoordDrop {
-        //     inner: icrd,
-        //     outer: c2,
-        // }
-        // .stage(scope)[0];
-        // let ijk = SamOps::CoordDrop {
-        //     inner: jk,
-        //     outer: c0,
-        // }
-        // .stage(scope)[0];
-        // (SamOps::Genref { coords: ijk }.stage(scope)[0], ijk)
-    };
+    });
+    let ref_binding = meta0.clone();
 
     let a_meta = a.meta.clone();
     let b_meta = b.meta.clone();
     let meta1 = move |refstream, scope: &_| {
         let root = SamOps::Root.stage(scope)[0];
         let t0 = SamOps::Repeat {
-            target: root,
+            target: ref_binding(refstream, scope).0,
             repeat: refstream,
         }
         .stage(scope)[0];
@@ -76,22 +50,6 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
         // }
         // .stage(scope)[0];
         (r2, c2)
-        // let (r4, c4) = a_meta[1](r3, scope);
-        // let (r5, c5) = b_meta[1](r2, scope);
-        // let icrd = SamOps::Join {
-        //     ref1: r4,
-        //     ref2: r5,
-        //     crd1: c4,
-        //     crd2: c5,
-        //     tp: crate::sam::JoinType::Intersect,
-        // }
-        // .stage(scope)[2];
-        // let jk = SamOps::CoordDrop {
-        //     inner: icrd,
-        //     outer: c2,
-        // }
-        // .stage(scope)[0];
-        // (SamOps::Genref { coords: jk }.stage(scope)[0], jk)
     };
 
     let comp = move |refstreams: Vec<Sym>, scope: &_| {
@@ -109,14 +67,14 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
         // .stage(scope)[0];
 
         //TODO: Might need to bring those back
+        // let (r0, _c0) = a.meta[0](refstreams[0], scope);
         let (r0, _c0) = a.meta[0](t0, scope);
-        let r1 = SamOps::Repeat {
-            // target: root,
-            target: t0,
-            repeat: r0,
-        }
-        .stage(scope)[0];
-        let (r2, _c2) = b.meta[0](r1, scope);
+        // let r1 = SamOps::Repeat {
+        //     target: refstreams[1],
+        //     repeat: r0,
+        // }
+        // .stage(scope)[0];
+        let (r2, _c2) = b.meta[0](refstreams[1], scope);
         let r3 = SamOps::Repeat {
             target: r0,
             // target: t1,
@@ -124,8 +82,8 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
         }
         .stage(scope)[0];
 
+        // let (r4, c4) = a.meta[1](refstreams[1], scope);
         let (r4, c4) = a.meta[1](r3, scope);
-        // let (r4, c4) = a.meta[1](r0, scope);
         let (r5, c5) = b.meta[1](r2, scope);
 
         // let gen = SamOps::Genref { coords: refstreams }
@@ -151,7 +109,7 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
         .stage(scope)[0]
     };
     Tensor {
-        meta: vec![Rc::new(meta0), Rc::new(meta1)],
+        meta: vec![meta0, Rc::new(meta1)],
         comp: Rc::new(comp),
     }
 }
