@@ -68,9 +68,7 @@ impl InputTensor {
                 }
                 .stage(scope)[0]
             }),
-            precomp: Rc::new(move | refstream, _scope| {
-                refstream
-            } )
+            precomp: Rc::new(move |refstream, _scope| refstream),
         }
     }
 }
