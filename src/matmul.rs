@@ -1,9 +1,11 @@
 use std::rc::Rc;
 
+use graphviz_rust::attributes::root;
+
 use crate::{
     sam::SamOps,
     sym::{Expr, Sym},
-    tensor::Tensor,
+    tensor::{Stream, Tensor},
 };
 
 pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
@@ -27,10 +29,8 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
         let root = SamOps::Root.stage(scope)[0];
 
         let prev_ref = refstreams[1];
-        // let (r2, _c2) = a_meta[0](vec![Some(root)], scope);
-        // let rep = SamOps::Repeat{ target: r2, repeat: prev_ref}.stage(scope)[0];
-        let (r4, c4) = a_meta[1](vec![None, Some(refstreams[0])], scope);
-        let (r5, c5) = b_meta[1](vec![Some(refstreams[0]), Some(prev_ref)], scope);
+        let (r4, c4) = a_meta[1](vec![Stream::Rep(root), Stream::Rep(refstreams[1])], scope);
+        let (r5, c5) = b_meta[1](vec![Stream::Rep(root), Stream::Ref(prev_ref)], scope);
 
         let [ika, ikb, _icrd] = SamOps::Join {
             refs: vec![r4, r5],
@@ -59,15 +59,8 @@ pub fn matmul(a: Tensor, b: Tensor) -> Tensor {
     
     let preprocess = move |refstream: Sym, scope: &_| {
         // let root = SamOps::Root.stage(scope)[0];
-        // let t0 = SamOps::Repeat {
-        //     target: root, 
-        //     repeat: refstream,
-        // }.stage(scope)[0];
-        let (r0, _c0) = a_meta[0](vec![Some(refstream)], scope);
-        // let (r0, _c0) = a_meta[0](vec![Some(refstream)], scope);
-        // let rep = SamOps::Repeat{ target: root, repeat: r0}.stage(scope)[0];
-        // let (r1, _c1) = b_meta[0](vec![Some(r0)], scope);
-        let (r1, _c1) = b_meta[0](vec![Some(r0)], scope);
+        let (r0, _c0) = a_meta[0](vec![Stream::Rep(refstream)], scope);
+        let (r1, _c1) = b_meta[0](vec![Stream::Rep(r0)], scope);
         let val = comp_pipeline(vec![r0, r1], scope);
         val 
     };

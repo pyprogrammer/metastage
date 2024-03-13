@@ -5,10 +5,15 @@ use crate::{
     sym::{Expr, ScopeRef, Sym},
 };
 
+pub enum Stream {
+    Ref(Sym),
+    Rep(Sym),
+}
+
 pub struct Tensor {
     // pub meta: Vec<Rc<dyn Fn(Vec<Option<Sym>>, &ScopeRef<SamOps>) -> (Sym, Sym)>>,
     // pub meta: Vec<Rc<dyn Fn(Sym, &ScopeRef<SamOps>) -> (Sym, Sym)>>,
-    pub meta: Vec<Rc<dyn Fn(Vec<Option<Sym>>, &ScopeRef<SamOps>) -> (Sym, Sym)>>,
+    pub meta: Vec<Rc<dyn Fn(Vec<Stream>, &ScopeRef<SamOps>) -> (Sym, Sym)>>,
     pub comp: Rc<dyn Fn(Vec<Sym>, &ScopeRef<SamOps>) -> Sym>,
     pub precomp: Rc<dyn Fn(Sym, &ScopeRef<SamOps>) -> Sym>,
 }
@@ -21,7 +26,8 @@ pub struct InputTensor {
 impl InputTensor {
     pub fn stage(&self) -> Tensor {
         // let mut meta: Vec<Rc<dyn Fn(Sym, &ScopeRef<SamOps>) -> (Sym, Sym)>> = vec![];
-        let mut meta: Vec<Rc<dyn Fn(Vec<Option<Sym>>, &ScopeRef<SamOps>) -> (Sym, Sym)>> = vec![];
+        // let mut meta: Vec<Rc<dyn Fn(Vec<Option<Sym>>, &ScopeRef<SamOps>) -> (Sym, Sym)>> = vec![];
+        let mut meta: Vec<Rc<dyn Fn(Vec<Stream>, &ScopeRef<SamOps>) -> (Sym, Sym)>> = vec![];
         for level in 0..self.dims {
             let tensor = self.name.clone();
             let prev_meta = match level {
@@ -36,8 +42,8 @@ impl InputTensor {
                     Some(pm) => pm(refstream, scope).0,
                 };
                 let rep = match rep {
-                    Some(r) => SamOps::Repeat{target : prev, repeat: r }.stage(scope)[0],
-                    None => prev,
+                    Stream::Ref(r) => r,
+                    Stream::Rep(r) => SamOps::Repeat{ target: prev, repeat: r}.stage(scope)[0],
                 };
                 let tmp = SamOps::Fiberlookup {
                     reference: rep,
